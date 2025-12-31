@@ -16,6 +16,7 @@ export async function GET() {
 			.select({
 				openrouterApiKey: vaults.openrouterApiKey,
 				aiModel: vaults.aiModel,
+				recentAiModels: vaults.recentAiModels,
 			})
 			.from(vaults)
 			.where(eq(vaults.id, session.vaultId));
@@ -33,6 +34,7 @@ export async function GET() {
 			hasApiKey: !!vault.openrouterApiKey,
 			maskedApiKey: maskedKey,
 			aiModel: vault.aiModel || "openai/gpt-4o-mini",
+			recentAiModels: vault.recentAiModels || [],
 		});
 	} catch (error) {
 		console.error("Error fetching AI settings:", error);
@@ -54,7 +56,11 @@ export async function PATCH(request: NextRequest) {
 		const body = await request.json();
 		const { openrouterApiKey, aiModel } = body;
 
-		const updateData: { openrouterApiKey?: string | null; aiModel?: string } = {};
+		const updateData: {
+			openrouterApiKey?: string | null;
+			aiModel?: string;
+			recentAiModels?: string[];
+		} = {};
 
 		// Handle API key update
 		if (openrouterApiKey !== undefined) {
@@ -65,6 +71,17 @@ export async function PATCH(request: NextRequest) {
 		// Handle model update
 		if (aiModel !== undefined) {
 			updateData.aiModel = aiModel;
+
+			// Add to recent models if not already present
+			const [currentVault] = await db
+				.select({ recentAiModels: vaults.recentAiModels })
+				.from(vaults)
+				.where(eq(vaults.id, session.vaultId));
+
+			const currentRecent = currentVault?.recentAiModels || [];
+			if (!currentRecent.includes(aiModel)) {
+				updateData.recentAiModels = [...currentRecent, aiModel];
+			}
 		}
 
 		if (Object.keys(updateData).length === 0) {

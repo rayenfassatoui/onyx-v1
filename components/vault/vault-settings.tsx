@@ -13,8 +13,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Shield, Download, Upload, Trash2, Bot, Eye, EyeOff, Check } from "lucide-react";
+import { Loader2, Shield, Download, Upload, Trash2, Bot, Eye, EyeOff, Check, ChevronsUpDown } from "lucide-react";
 import { toast } from "sonner";
+import {
+	Command,
+	CommandEmpty,
+	CommandGroup,
+	CommandInput,
+	CommandItem,
+	CommandList,
+} from "@/components/ui/command";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -62,6 +76,9 @@ export function VaultSettings({
 	const [apiKey, setApiKey] = React.useState("");
 	const [showApiKey, setShowApiKey] = React.useState(false);
 	const [aiModel, setAiModel] = React.useState("openai/gpt-4o-mini");
+	const [recentAiModels, setRecentAiModels] = React.useState<string[]>([]);
+	const [openModelCombobox, setOpenModelCombobox] = React.useState(false);
+	const [modelSearch, setModelSearch] = React.useState("");
 	const [hasApiKey, setHasApiKey] = React.useState(false);
 	const [maskedApiKey, setMaskedApiKey] = React.useState<string | null>(null);
 	const [isSavingAiSettings, setIsSavingAiSettings] = React.useState(false);
@@ -83,6 +100,7 @@ export function VaultSettings({
 				setHasApiKey(data.hasApiKey);
 				setMaskedApiKey(data.maskedApiKey);
 				setAiModel(data.aiModel || "openai/gpt-4o-mini");
+				setRecentAiModels(data.recentAiModels || []);
 			}
 		} catch (error) {
 			console.error("Failed to fetch AI settings:", error);
@@ -364,13 +382,64 @@ export function VaultSettings({
 							{/* Model Input */}
 							<div className="space-y-2">
 								<Label htmlFor="ai-model">AI Model</Label>
-								<Input
-									id="ai-model"
-									type="text"
-									value={aiModel}
-									onChange={(e) => setAiModel(e.target.value)}
-									placeholder="e.g., openai/gpt-4o-mini"
-								/>
+								<Popover open={openModelCombobox} onOpenChange={setOpenModelCombobox}>
+									<PopoverTrigger asChild>
+										<Button
+											variant="outline"
+											role="combobox"
+											aria-expanded={openModelCombobox}
+											className="w-full justify-between"
+										>
+											{aiModel || "Select model..."}
+											<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+										</Button>
+									</PopoverTrigger>
+									<PopoverContent className="w-[400px] p-0" align="start">
+										<Command>
+											<CommandInput
+												placeholder="Search or enter model..."
+												onValueChange={setModelSearch}
+											/>
+											<CommandList>
+												<CommandEmpty>No recent models found.</CommandEmpty>
+												<CommandGroup heading="Recent Models">
+													{recentAiModels.map((model) => (
+														<CommandItem
+															key={model}
+															value={model}
+															onSelect={() => {
+																setAiModel(model);
+																setOpenModelCombobox(false);
+															}}
+														>
+															<Check
+																className={cn(
+																	"mr-2 h-4 w-4",
+																	aiModel === model
+																		? "opacity-100"
+																		: "opacity-0",
+																)}
+															/>
+															{model}
+														</CommandItem>
+													))}
+													{modelSearch && !recentAiModels.includes(modelSearch) && (
+														<CommandItem
+															value={modelSearch}
+															onSelect={() => {
+																setAiModel(modelSearch);
+																setOpenModelCombobox(false);
+															}}
+														>
+															<Check className="mr-2 h-4 w-4 opacity-0" />
+															Use "{modelSearch}"
+														</CommandItem>
+													)}
+												</CommandGroup>
+											</CommandList>
+										</Command>
+									</PopoverContent>
+								</Popover>
 								<p className="text-xs text-muted-foreground">
 									Enter model ID from{" "}
 									<a

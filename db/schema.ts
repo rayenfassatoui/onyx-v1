@@ -2,6 +2,7 @@ import { relations } from "drizzle-orm";
 import {
 	index,
 	integer,
+	json,
 	pgTable,
 	text,
 	timestamp,
@@ -43,6 +44,7 @@ export const vaults = pgTable("vaults", {
 	// AI Settings - stored encrypted in production
 	openrouterApiKey: text("openrouter_api_key"),
 	aiModel: text("ai_model").default("openai/gpt-4o-mini"),
+	recentAiModels: json("recent_ai_models").$type<string[]>().default([]),
 	createdAt: timestamp("created_at", { withTimezone: true })
 		.defaultNow()
 		.notNull(),
