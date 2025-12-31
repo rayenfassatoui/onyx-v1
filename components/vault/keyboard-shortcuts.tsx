@@ -32,6 +32,7 @@ const shortcuts = [
 			{ keys: ["⌘", "E"], description: "Edit selected prompt" },
 			{ keys: ["⌘", "C"], description: "Copy prompt content" },
 			{ keys: ["⌘", "S"], description: "Save prompt (in editor)" },
+			{ keys: ["⌘", "Shift", "S"], description: "Share selected prompt" },
 			{ keys: ["Del"], description: "Delete selected prompt" },
 		],
 	},
@@ -40,6 +41,8 @@ const shortcuts = [
 		items: [
 			{ keys: ["⌘", "K"], description: "Open command palette" },
 			{ keys: ["⌘", ","], description: "Open settings" },
+			{ keys: ["G"], description: "Go to Groups" },
+			{ keys: ["H"], description: "Go to Shared prompts" },
 			{ keys: ["?"], description: "Show keyboard shortcuts" },
 		],
 	},

@@ -358,6 +358,13 @@ export function DashboardClient({ session }: DashboardClientProps) {
 						handleEditPrompt(filteredPrompts[selectedIndex].id);
 					}
 					break;
+				case "s":
+				case "S":
+					if ((e.metaKey || e.ctrlKey) && e.shiftKey && selectedIndex >= 0) {
+						e.preventDefault();
+						handleOpenShare(filteredPrompts[selectedIndex]);
+					}
+					break;
 				case ",":
 					if (e.metaKey || e.ctrlKey) {
 						e.preventDefault();
@@ -367,6 +374,20 @@ export function DashboardClient({ session }: DashboardClientProps) {
 				case "?":
 					e.preventDefault();
 					setShortcutsOpen(true);
+					break;
+				case "g":
+				case "G":
+					if (!e.metaKey && !e.ctrlKey) {
+						e.preventDefault();
+						router.push("/groups");
+					}
+					break;
+				case "h":
+				case "H":
+					if (!e.metaKey && !e.ctrlKey) {
+						e.preventDefault();
+						router.push("/shared");
+					}
 					break;
 				case "Delete":
 				case "Backspace":
