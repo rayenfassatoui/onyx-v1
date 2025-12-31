@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import type { SessionPayload } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import { LogOut, Plus, Search, Settings, ArrowUpDown, Keyboard, Download } from "lucide-react";
+import { LogOut, Plus, Search, Settings, ArrowUpDown, Keyboard, Download, Users, Share2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { PromptCard } from "@/components/vault/prompt-card";
 import { PromptEditor } from "@/components/vault/prompt-editor";
@@ -16,6 +16,8 @@ import { KeyboardShortcuts } from "@/components/vault/keyboard-shortcuts";
 import { ImportDialog } from "@/components/vault/import-dialog";
 import { VersionHistory } from "@/components/vault/version-history";
 import { AISuggestions } from "@/components/vault/ai-suggestions";
+import { SharePromptDialog } from "@/components/vault/share-prompt-dialog";
+import { NotificationBell } from "@/components/vault/notification-bell";
 import {
 	Tooltip,
 	TooltipContent,
@@ -79,8 +81,10 @@ export function DashboardClient({ session }: DashboardClientProps) {
 	const [importOpen, setImportOpen] = React.useState(false);
 	const [versionHistoryOpen, setVersionHistoryOpen] = React.useState(false);
 	const [aiSuggestionsOpen, setAiSuggestionsOpen] = React.useState(false);
+	const [shareDialogOpen, setShareDialogOpen] = React.useState(false);
 	const [selectedPromptForHistory, setSelectedPromptForHistory] = React.useState<Prompt | null>(null);
 	const [selectedPromptForAI, setSelectedPromptForAI] = React.useState<Prompt | null>(null);
+	const [selectedPromptForShare, setSelectedPromptForShare] = React.useState<Prompt | null>(null);
 	
 	// Keyboard navigation
 	const [selectedIndex, setSelectedIndex] = React.useState(-1);
@@ -286,6 +290,12 @@ export function DashboardClient({ session }: DashboardClientProps) {
 		setAiSuggestionsOpen(true);
 	};
 
+	// Share prompt handler
+	const handleOpenShare = (prompt: Prompt) => {
+		setSelectedPromptForShare(prompt);
+		setShareDialogOpen(true);
+	};
+
 	// Apply AI variant
 	const handleApplyVariant = async (content: string) => {
 		if (selectedPromptForAI) {
@@ -451,6 +461,34 @@ export function DashboardClient({ session }: DashboardClientProps) {
 							<TooltipContent>Keyboard shortcuts (?)</TooltipContent>
 						</Tooltip>
 
+						{/* Shared Prompts */}
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button size="sm" variant="ghost" onClick={() => router.push("/shared")}>
+									<Share2 className="h-4 w-4" />
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent>Shared prompts</TooltipContent>
+						</Tooltip>
+
+						{/* Groups */}
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button size="sm" variant="ghost" onClick={() => router.push("/groups")}>
+									<Users className="h-4 w-4" />
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent>Groups</TooltipContent>
+						</Tooltip>
+
+						{/* Notifications */}
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<NotificationBell />
+							</TooltipTrigger>
+							<TooltipContent>Notifications</TooltipContent>
+						</Tooltip>
+
 						{/* Settings */}
 						<Tooltip>
 							<TooltipTrigger asChild>
@@ -538,6 +576,7 @@ export function DashboardClient({ session }: DashboardClientProps) {
 									onDelete={handleDeletePrompt}
 									onHistory={() => handleOpenVersionHistory(prompt)}
 									onAI={() => handleOpenAISuggestions(prompt)}
+									onShare={() => handleOpenShare(prompt)}
 								/>
 							))}
 						</AnimatePresence>
@@ -630,6 +669,15 @@ export function DashboardClient({ session }: DashboardClientProps) {
 					promptTitle={selectedPromptForAI.title}
 					promptContent={selectedPromptForAI.content}
 					onApplyVariant={handleApplyVariant}
+				/>
+			)}
+
+			{selectedPromptForShare && (
+				<SharePromptDialog
+					open={shareDialogOpen}
+					onOpenChange={setShareDialogOpen}
+					promptId={selectedPromptForShare.id}
+					promptTitle={selectedPromptForShare.title}
 				/>
 			)}
 

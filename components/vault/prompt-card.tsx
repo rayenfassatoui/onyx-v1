@@ -5,7 +5,7 @@ import { motion } from "motion/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Copy, MoreVertical, Edit, Trash2, History, Sparkles } from "lucide-react";
+import { Copy, MoreVertical, Edit, Trash2, History, Sparkles, Share2 } from "lucide-react";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -36,6 +36,7 @@ interface PromptCardProps {
 	onDelete?: (id: string) => void;
 	onHistory?: () => void;
 	onAI?: () => void;
+	onShare?: () => void;
 	onClick?: (id: string) => void;
 }
 
@@ -51,6 +52,7 @@ export function PromptCard({
 	onDelete,
 	onHistory,
 	onAI,
+	onShare,
 	onClick,
 }: PromptCardProps) {
 	const variables = extractVariables(content);
@@ -84,6 +86,11 @@ export function PromptCard({
 	const handleAI = (e: React.MouseEvent) => {
 		e.stopPropagation();
 		onAI?.();
+	};
+
+	const handleShare = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		onShare?.();
 	};
 
 	return (
@@ -122,6 +129,10 @@ export function PromptCard({
 								<DropdownMenuItem onClick={handleEdit}>
 									<Edit className="mr-2 h-4 w-4" />
 									Edit
+								</DropdownMenuItem>
+								<DropdownMenuItem onClick={handleShare}>
+									<Share2 className="mr-2 h-4 w-4" />
+									Share
 								</DropdownMenuItem>
 								<DropdownMenuItem onClick={handleHistory}>
 									<History className="mr-2 h-4 w-4" />

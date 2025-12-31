@@ -1,5 +1,7 @@
 import { relations } from "drizzle-orm";
 import {
+	boolean,
+	check,
 	index,
 	integer,
 	json,
@@ -9,6 +11,7 @@ import {
 	uuid,
 	primaryKey,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 // ============================================================================
 // Users
@@ -26,8 +29,10 @@ export const users = pgTable("users", {
 		.notNull(),
 });
 
-export const usersRelations = relations(users, ({ one }) => ({
+export const usersRelations = relations(users, ({ one, many }) => ({
 	vault: one(vaults),
+	groupMemberships: many(groupMembers),
+	notifications: many(notifications),
 }));
 
 // ============================================================================
@@ -125,6 +130,7 @@ export const promptsRelations = relations(prompts, ({ one, many }) => ({
 	}),
 	versions: many(promptVersions),
 	promptTags: many(promptTags),
+	shares: many(sharedPrompts),
 }));
 
 // ============================================================================
@@ -195,6 +201,164 @@ export const promptTagsRelations = relations(promptTags, ({ one }) => ({
 }));
 
 // ============================================================================
+// Groups
+// ============================================================================
+
+export const groups = pgTable(
+	"groups",
+	{
+		id: uuid("id").defaultRandom().primaryKey(),
+		name: text("name").notNull(),
+		description: text("description"),
+		creatorId: uuid("creator_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		createdAt: timestamp("created_at", { withTimezone: true })
+			.defaultNow()
+			.notNull(),
+		updatedAt: timestamp("updated_at", { withTimezone: true })
+			.defaultNow()
+			.notNull(),
+	},
+	(table) => [
+		index("groups_creator_id_idx").on(table.creatorId),
+	],
+);
+
+export const groupsRelations = relations(groups, ({ one, many }) => ({
+	creator: one(users, {
+		fields: [groups.creatorId],
+		references: [users.id],
+	}),
+	members: many(groupMembers),
+	sharedPrompts: many(sharedPrompts),
+}));
+
+// ============================================================================
+// Group Members (Junction Table)
+// ============================================================================
+
+export const groupMembers = pgTable(
+	"group_members",
+	{
+		groupId: uuid("group_id")
+			.notNull()
+			.references(() => groups.id, { onDelete: "cascade" }),
+		userId: uuid("user_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		role: text("role").notNull().default("member"), // 'admin' or 'member'
+		joinedAt: timestamp("joined_at", { withTimezone: true })
+			.defaultNow()
+			.notNull(),
+	},
+	(table) => [
+		primaryKey({ columns: [table.groupId, table.userId] }),
+		index("group_members_group_id_idx").on(table.groupId),
+		index("group_members_user_id_idx").on(table.userId),
+	],
+);
+
+export const groupMembersRelations = relations(groupMembers, ({ one }) => ({
+	group: one(groups, {
+		fields: [groupMembers.groupId],
+		references: [groups.id],
+	}),
+	user: one(users, {
+		fields: [groupMembers.userId],
+		references: [users.id],
+	}),
+}));
+
+// ============================================================================
+// Shared Prompts
+// ============================================================================
+
+export const sharedPrompts = pgTable(
+	"shared_prompts",
+	{
+		id: uuid("id").defaultRandom().primaryKey(),
+		promptId: uuid("prompt_id")
+			.notNull()
+			.references(() => prompts.id, { onDelete: "cascade" }),
+		sharedById: uuid("shared_by_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		sharedWithUserId: uuid("shared_with_user_id")
+			.references(() => users.id, { onDelete: "cascade" }),
+		sharedWithGroupId: uuid("shared_with_group_id")
+			.references(() => groups.id, { onDelete: "cascade" }),
+		createdAt: timestamp("created_at", { withTimezone: true })
+			.defaultNow()
+			.notNull(),
+	},
+	(table) => [
+		index("shared_prompts_prompt_id_idx").on(table.promptId),
+		index("shared_prompts_shared_by_id_idx").on(table.sharedById),
+		index("shared_prompts_shared_with_user_id_idx").on(table.sharedWithUserId),
+		index("shared_prompts_shared_with_group_id_idx").on(table.sharedWithGroupId),
+		// Constraint: Either sharedWithUserId OR sharedWithGroupId must be set, not both
+		check(
+			"share_target_check",
+			sql`(shared_with_user_id IS NOT NULL AND shared_with_group_id IS NULL) OR (shared_with_user_id IS NULL AND shared_with_group_id IS NOT NULL)`
+		),
+	],
+);
+
+export const sharedPromptsRelations = relations(sharedPrompts, ({ one }) => ({
+	prompt: one(prompts, {
+		fields: [sharedPrompts.promptId],
+		references: [prompts.id],
+	}),
+	sharedBy: one(users, {
+		fields: [sharedPrompts.sharedById],
+		references: [users.id],
+	}),
+	sharedWithUser: one(users, {
+		fields: [sharedPrompts.sharedWithUserId],
+		references: [users.id],
+	}),
+	sharedWithGroup: one(groups, {
+		fields: [sharedPrompts.sharedWithGroupId],
+		references: [groups.id],
+	}),
+}));
+
+// ============================================================================
+// Notifications
+// ============================================================================
+
+export const notifications = pgTable(
+	"notifications",
+	{
+		id: uuid("id").defaultRandom().primaryKey(),
+		userId: uuid("user_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		type: text("type").notNull(), // 'prompt_shared', 'group_invite', etc.
+		title: text("title").notNull(),
+		message: text("message"),
+		metadata: json("metadata").$type<Record<string, unknown>>(),
+		read: boolean("read").notNull().default(false),
+		createdAt: timestamp("created_at", { withTimezone: true })
+			.defaultNow()
+			.notNull(),
+	},
+	(table) => [
+		index("notifications_user_id_idx").on(table.userId),
+		index("notifications_user_id_read_idx").on(table.userId, table.read),
+		index("notifications_created_at_idx").on(table.createdAt),
+	],
+);
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+	user: one(users, {
+		fields: [notifications.userId],
+		references: [users.id],
+	}),
+}));
+
+// ============================================================================
 // Type Exports
 // ============================================================================
 
@@ -215,3 +379,15 @@ export type NewPromptVersion = typeof promptVersions.$inferInsert;
 
 export type PromptTag = typeof promptTags.$inferSelect;
 export type NewPromptTag = typeof promptTags.$inferInsert;
+
+export type Group = typeof groups.$inferSelect;
+export type NewGroup = typeof groups.$inferInsert;
+
+export type GroupMember = typeof groupMembers.$inferSelect;
+export type NewGroupMember = typeof groupMembers.$inferInsert;
+
+export type SharedPrompt = typeof sharedPrompts.$inferSelect;
+export type NewSharedPrompt = typeof sharedPrompts.$inferInsert;
+
+export type Notification = typeof notifications.$inferSelect;
+export type NewNotification = typeof notifications.$inferInsert;
