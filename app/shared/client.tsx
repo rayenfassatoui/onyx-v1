@@ -163,14 +163,14 @@ export function SharedPromptsClient() {
 						{filteredPrompts.map((shared) => (
 							<div
 								key={shared.shareId}
-								className="group relative rounded-xl border border-white/10 bg-white/5 p-4 hover:bg-white/10 transition-all cursor-pointer"
+								className="group relative rounded-xl border bg-card p-4 hover:bg-accent/50 transition-all cursor-pointer"
 								onClick={() => {
 									setSelectedPrompt(shared);
 									setViewerOpen(true);
 								}}
 							>
 								<div className="flex items-start justify-between gap-2 mb-3">
-									<h3 className="font-semibold text-white line-clamp-1">
+									<h3 className="font-semibold line-clamp-1">
 										{shared.prompt.title}
 									</h3>
 									<Badge
@@ -178,8 +178,8 @@ export function SharedPromptsClient() {
 										className={cn(
 											"shrink-0 text-[10px]",
 											shared.sharedVia.type === "group"
-												? "bg-purple-500/10 text-purple-400 border-purple-500/20"
-												: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
+												? "bg-purple-100 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20"
+												: "bg-indigo-100 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20"
 										)}
 									>
 										{shared.sharedVia.type === "group" ? (
@@ -199,7 +199,7 @@ export function SharedPromptsClient() {
 									</p>
 								)}
 
-								<pre className="text-xs text-muted-foreground/70 font-mono bg-black/20 rounded-lg p-3 line-clamp-3 mb-3">
+								<pre className="text-xs text-muted-foreground font-mono bg-muted rounded-lg p-3 line-clamp-3 mb-3">
 									{shared.prompt.content}
 								</pre>
 

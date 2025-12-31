@@ -185,15 +185,15 @@ export function SharePromptDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-w-lg bg-zinc-950 border-white/10 p-0 gap-0">
-				<DialogHeader className="px-6 py-4 border-b border-white/10 bg-white/5">
+			<DialogContent className="max-w-lg p-0 gap-0">
+				<DialogHeader className="px-6 py-4 border-b">
 					<div className="flex items-center gap-3">
 						<div className="h-10 w-10 rounded-lg bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
-							<Share2 className="h-5 w-5 text-indigo-400" />
+							<Share2 className="h-5 w-5 text-indigo-500" />
 						</div>
 						<div>
 							<DialogTitle className="text-lg font-semibold">Share Prompt</DialogTitle>
-							<DialogDescription className="text-muted-foreground/80">
+							<DialogDescription>
 								Share "{promptTitle}" with others
 							</DialogDescription>
 						</div>
@@ -202,12 +202,12 @@ export function SharePromptDialog({
 
 				<Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "user" | "group")} className="flex-1">
 					<div className="px-6 pt-4">
-						<TabsList className="grid w-full grid-cols-2 bg-white/5">
-							<TabsTrigger value="user" className="data-[state=active]:bg-indigo-500">
+						<TabsList className="grid w-full grid-cols-2">
+							<TabsTrigger value="user" className="data-[state=active]:bg-indigo-500 data-[state=active]:text-white">
 								<User className="h-4 w-4 mr-2" />
 								User
 							</TabsTrigger>
-							<TabsTrigger value="group" className="data-[state=active]:bg-indigo-500">
+							<TabsTrigger value="group" className="data-[state=active]:bg-indigo-500 data-[state=active]:text-white">
 								<Users className="h-4 w-4 mr-2" />
 								Group
 							</TabsTrigger>
@@ -267,13 +267,13 @@ export function SharePromptDialog({
 												className={cn(
 													"flex items-center justify-between p-3 rounded-lg border transition-colors",
 													alreadyShared
-														? "border-green-500/30 bg-green-500/5"
-														: "border-white/10 bg-white/5 hover:bg-white/10"
+														? "border-green-500/30 bg-green-50 dark:bg-green-500/5"
+														: "border-border bg-muted/50 hover:bg-muted"
 												)}
 											>
 												<div className="flex items-center gap-3">
 													<div className="h-8 w-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
-														<Users className="h-4 w-4 text-purple-400" />
+														<Users className="h-4 w-4 text-purple-500" />
 													</div>
 													<div>
 														<p className="font-medium text-sm">{group.name}</p>
@@ -283,7 +283,7 @@ export function SharePromptDialog({
 													</div>
 												</div>
 												{alreadyShared ? (
-													<Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/20">
+													<Badge variant="outline" className="bg-green-100 dark:bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20">
 														<Check className="h-3 w-3 mr-1" />
 														Shared
 													</Badge>
@@ -313,7 +313,7 @@ export function SharePromptDialog({
 				{/* Current Shares */}
 				{shares.length > 0 && (
 					<div className="px-6 pb-6">
-						<div className="border-t border-white/10 pt-4">
+						<div className="border-t pt-4">
 							<Label className="text-xs text-muted-foreground uppercase tracking-wider">
 								Currently shared with
 							</Label>
@@ -322,17 +322,17 @@ export function SharePromptDialog({
 									{shares.map((share) => (
 										<div
 											key={share.id}
-											className="flex items-center justify-between p-2 rounded-lg bg-white/5"
+											className="flex items-center justify-between p-2 rounded-lg bg-muted"
 										>
 											<div className="flex items-center gap-2">
 												{share.sharedWithUser ? (
 													<>
-														<User className="h-4 w-4 text-indigo-400" />
+														<User className="h-4 w-4 text-indigo-500" />
 														<span className="text-sm">{share.sharedWithUser.email}</span>
 													</>
 												) : (
 													<>
-														<Users className="h-4 w-4 text-purple-400" />
+														<Users className="h-4 w-4 text-purple-500" />
 														<span className="text-sm">{share.sharedWithGroup?.name}</span>
 													</>
 												)}
@@ -341,7 +341,7 @@ export function SharePromptDialog({
 												variant="ghost"
 												size="sm"
 												onClick={() => handleRevokeShare(share.id)}
-												className="h-7 w-7 p-0 text-muted-foreground hover:text-red-400"
+												className="h-7 w-7 p-0 text-muted-foreground hover:text-red-500"
 											>
 												<Trash2 className="h-4 w-4" />
 											</Button>
@@ -353,7 +353,7 @@ export function SharePromptDialog({
 					</div>
 				)}
 
-				<DialogFooter className="px-6 py-4 border-t border-white/10 bg-white/5">
+				<DialogFooter className="px-6 py-4 border-t">
 					<Button variant="ghost" onClick={() => onOpenChange(false)}>
 						Done
 					</Button>
