@@ -71,7 +71,7 @@ export async function GET(
 
 		// Transform members to flatten user data
 		const transformedMembers = group.members.map((member) => ({
-			id: member.id,
+			id: `${member.groupId}-${member.userId}`,
 			userId: member.userId,
 			email: member.user?.email || "",
 			role: member.role,
