@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import type { SessionPayload } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import { LogOut, Plus, Search, Settings, ArrowUpDown, Keyboard, Download, Users, Share2, Link2, Copy, Check } from "lucide-react";
+import { LogOut, Plus, Search, Settings, ArrowUpDown, Keyboard, Download, Users, Share2, Link2, Copy, Check, CheckSquare, Square, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -34,6 +34,7 @@ import { ImportDialog } from "@/components/vault/import-dialog";
 import { VersionHistory } from "@/components/vault/version-history";
 import { AISuggestions } from "@/components/vault/ai-suggestions";
 import { SharePromptDialog } from "@/components/vault/share-prompt-dialog";
+import { BulkShareDialog } from "@/components/vault/bulk-share-dialog";
 import { NotificationBell } from "@/components/vault/notification-bell";
 import {
 	Tooltip,
@@ -66,6 +67,16 @@ interface Prompt {
 	createdAt: Date;
 	updatedAt: Date;
 	versionCount?: number;
+	// For shared prompts
+	isShared?: boolean;
+	sharedBy?: {
+		id: string;
+		email: string;
+	};
+	sharedByGroup?: {
+		id: string;
+		name: string;
+	};
 }
 
 interface DashboardClientProps {
@@ -111,6 +122,14 @@ export function DashboardClient({ session }: DashboardClientProps) {
 	const [isCreatingUserInvite, setIsCreatingUserInvite] = React.useState(false);
 	const [userInviteLinkCopied, setUserInviteLinkCopied] = React.useState(false);
 	
+	// Multi-select state
+	const [isMultiSelectMode, setIsMultiSelectMode] = React.useState(false);
+	const [selectedPromptIds, setSelectedPromptIds] = React.useState<Set<string>>(new Set());
+	const [bulkShareDialogOpen, setBulkShareDialogOpen] = React.useState(false);
+	
+	// Shared prompts
+	const [sharedPrompts, setSharedPrompts] = React.useState<Prompt[]>([]);
+	
 	// Keyboard navigation
 	const [selectedIndex, setSelectedIndex] = React.useState(-1);
 	const searchInputRef = React.useRef<HTMLInputElement>(null);
@@ -118,9 +137,10 @@ export function DashboardClient({ session }: DashboardClientProps) {
 	// Fetch data
 	const fetchData = React.useCallback(async () => {
 		try {
-			const [promptsRes, tagsRes] = await Promise.all([
+			const [promptsRes, tagsRes, sharedRes] = await Promise.all([
 				fetch(`/api/prompts?sortBy=${sortBy}`),
 				fetch("/api/tags"),
+				fetch("/api/shared"),
 			]);
 
 			if (promptsRes.ok) {
@@ -131,6 +151,26 @@ export function DashboardClient({ session }: DashboardClientProps) {
 			if (tagsRes.ok) {
 				const data = await tagsRes.json();
 				setTags(data.tags);
+			}
+
+			if (sharedRes.ok) {
+				const data = await sharedRes.json();
+				// Transform shared prompts to include sharing info
+				const transformedShared: Prompt[] = (data.sharedPrompts || []).map((sp: any) => ({
+					id: sp.prompt.id,
+					title: sp.prompt.title,
+					description: sp.prompt.description || "",
+					content: sp.prompt.content,
+					tags: sp.prompt.tags || [],
+					createdAt: sp.prompt.createdAt,
+					updatedAt: sp.prompt.updatedAt,
+					isShared: true,
+					sharedBy: sp.sharedBy ? { id: sp.sharedBy.id, email: sp.sharedBy.email } : undefined,
+					sharedByGroup: sp.sharedVia?.type === "group" && sp.sharedVia.group 
+						? { id: sp.sharedVia.group.id, name: sp.sharedVia.group.name } 
+						: undefined,
+				}));
+				setSharedPrompts(transformedShared);
 			}
 		} catch (error) {
 			console.error("Failed to fetch data:", error);
@@ -160,9 +200,14 @@ export function DashboardClient({ session }: DashboardClientProps) {
 		}
 	}, [router]);
 
+	// Combine own prompts with shared prompts
+	const allPrompts = React.useMemo(() => {
+		return [...prompts, ...sharedPrompts];
+	}, [prompts, sharedPrompts]);
+
 	// Filter prompts
 	const filteredPrompts = React.useMemo(() => {
-		let filtered = prompts;
+		let filtered = allPrompts;
 
 		// Search filter
 		if (searchQuery) {
@@ -184,7 +229,16 @@ export function DashboardClient({ session }: DashboardClientProps) {
 		}
 
 		return filtered;
-	}, [prompts, searchQuery, selectedTagIds]);
+	}, [allPrompts, searchQuery, selectedTagIds]);
+
+	// Separate own and shared prompts for display
+	const ownFilteredPrompts = React.useMemo(() => {
+		return filteredPrompts.filter(p => !p.isShared);
+	}, [filteredPrompts]);
+
+	const sharedFilteredPrompts = React.useMemo(() => {
+		return filteredPrompts.filter(p => p.isShared);
+	}, [filteredPrompts]);
 
 	// Handlers
 	const handleLogout = async () => {
@@ -206,6 +260,15 @@ export function DashboardClient({ session }: DashboardClientProps) {
 	};
 
 	const handleViewPrompt = async (id: string) => {
+		// First check if we already have the prompt data (including shared prompts)
+		const existingPrompt = allPrompts.find(p => p.id === id);
+		if (existingPrompt) {
+			setViewingPrompt(existingPrompt);
+			setViewerOpen(true);
+			return;
+		}
+
+		// Fallback to fetching from API
 		try {
 			const res = await fetch(`/api/prompts/${id}`);
 			if (res.ok) {
@@ -384,6 +447,39 @@ export function DashboardClient({ session }: DashboardClientProps) {
 		}
 	};
 
+	// Multi-select handlers
+	const toggleMultiSelectMode = () => {
+		setIsMultiSelectMode(!isMultiSelectMode);
+		setSelectedPromptIds(new Set());
+	};
+
+	const togglePromptSelection = (promptId: string) => {
+		const newSelection = new Set(selectedPromptIds);
+		if (newSelection.has(promptId)) {
+			newSelection.delete(promptId);
+		} else {
+			newSelection.add(promptId);
+		}
+		setSelectedPromptIds(newSelection);
+	};
+
+	const selectAllPrompts = () => {
+		const allIds = new Set(filteredPrompts.filter(p => !p.isShared).map(p => p.id));
+		setSelectedPromptIds(allIds);
+	};
+
+	const clearSelection = () => {
+		setSelectedPromptIds(new Set());
+	};
+
+	const handleBulkShare = () => {
+		if (selectedPromptIds.size === 0) {
+			toast.error("Select at least one prompt to share");
+			return;
+		}
+		setBulkShareDialogOpen(true);
+	};
+
 	// Apply AI variant
 	const handleApplyVariant = async (content: string) => {
 		if (selectedPromptForAI) {
@@ -483,6 +579,13 @@ export function DashboardClient({ session }: DashboardClientProps) {
 						e.preventDefault();
 						setUserInviteLink(null);
 						setUserInviteDialogOpen(true);
+					}
+					break;
+				case "m":
+				case "M":
+					if (!e.metaKey && !e.ctrlKey) {
+						e.preventDefault();
+						toggleMultiSelectMode();
 					}
 					break;
 				case "Delete":
@@ -673,20 +776,61 @@ export function DashboardClient({ session }: DashboardClientProps) {
 					</div>
 				)}
 
-				{/* Create Button */}
+				{/* Create Button and Multi-Select Controls */}
 				<div className="mb-4 flex justify-between items-center">
-					<span className="text-sm text-muted-foreground">
-						{filteredPrompts.length} prompt{filteredPrompts.length !== 1 ? "s" : ""}
-					</span>
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button onClick={handleCreatePrompt} size="sm">
-								<Plus className="mr-1.5 h-4 w-4" />
-								Create Prompt
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>Create new prompt (⌘N)</TooltipContent>
-					</Tooltip>
+					<div className="flex items-center gap-2">
+						<span className="text-sm text-muted-foreground">
+							{ownFilteredPrompts.length} prompt{ownFilteredPrompts.length !== 1 ? "s" : ""}
+							{sharedFilteredPrompts.length > 0 && ` • ${sharedFilteredPrompts.length} shared`}
+						</span>
+						{isMultiSelectMode && selectedPromptIds.size > 0 && (
+							<span className="text-sm font-medium text-primary">
+								({selectedPromptIds.size} selected)
+							</span>
+						)}
+					</div>
+					<div className="flex items-center gap-2">
+						{isMultiSelectMode ? (
+							<>
+								<Button variant="outline" size="sm" onClick={selectAllPrompts}>
+									<CheckSquare className="mr-1.5 h-4 w-4" />
+									Select All
+								</Button>
+								<Button 
+									size="sm" 
+									onClick={handleBulkShare}
+									disabled={selectedPromptIds.size === 0}
+								>
+									<Share2 className="mr-1.5 h-4 w-4" />
+									Share ({selectedPromptIds.size})
+								</Button>
+								<Button variant="ghost" size="sm" onClick={toggleMultiSelectMode}>
+									<X className="h-4 w-4" />
+								</Button>
+							</>
+						) : (
+							<>
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<Button variant="outline" size="sm" onClick={toggleMultiSelectMode}>
+											<CheckSquare className="mr-1.5 h-4 w-4" />
+											Select
+										</Button>
+									</TooltipTrigger>
+									<TooltipContent>Multi-select prompts (M)</TooltipContent>
+								</Tooltip>
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<Button onClick={handleCreatePrompt} size="sm">
+											<Plus className="mr-1.5 h-4 w-4" />
+											Create Prompt
+										</Button>
+									</TooltipTrigger>
+									<TooltipContent>Create new prompt (⌘N)</TooltipContent>
+								</Tooltip>
+							</>
+						)}
+					</div>
 				</div>
 
 				{/* Prompt Grid or Empty State */}
@@ -699,23 +843,83 @@ export function DashboardClient({ session }: DashboardClientProps) {
 							/>
 						))}
 					</div>
-				) : filteredPrompts.length > 0 ? (
-					<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-						<AnimatePresence>
-							{filteredPrompts.map((prompt, index) => (
-								<PromptCard
-									key={prompt.id}
-									{...prompt}
-									isSelected={index === selectedIndex}
-									onClick={handleViewPrompt}
-									onEdit={handleEditPrompt}
-									onDelete={handleDeletePrompt}
-									onHistory={() => handleOpenVersionHistory(prompt)}
-									onAI={() => handleOpenAISuggestions(prompt)}
-									onShare={() => handleOpenShare(prompt)}
-								/>
-							))}
-						</AnimatePresence>
+				) : ownFilteredPrompts.length > 0 || sharedFilteredPrompts.length > 0 ? (
+					<div className="space-y-8">
+						{/* Own Prompts Section */}
+						{ownFilteredPrompts.length > 0 && (
+							<div>
+								{sharedFilteredPrompts.length > 0 && (
+									<h3 className="text-sm font-medium text-muted-foreground mb-3">Your Prompts</h3>
+								)}
+								<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+									<AnimatePresence>
+										{ownFilteredPrompts.map((prompt, index) => (
+											<div key={prompt.id} className="relative">
+												{isMultiSelectMode && (
+													<div 
+														className="absolute top-2 left-2 z-10 cursor-pointer"
+														onClick={(e) => {
+															e.stopPropagation();
+															togglePromptSelection(prompt.id);
+														}}
+													>
+														{selectedPromptIds.has(prompt.id) ? (
+															<div className="h-5 w-5 rounded bg-primary flex items-center justify-center">
+																<Check className="h-3 w-3 text-primary-foreground" />
+															</div>
+														) : (
+															<div className="h-5 w-5 rounded border-2 border-muted-foreground/50 bg-background/80" />
+														)}
+													</div>
+												)}
+												<PromptCard
+													{...prompt}
+													isSelected={index === selectedIndex}
+													onClick={isMultiSelectMode ? () => togglePromptSelection(prompt.id) : handleViewPrompt}
+													onEdit={handleEditPrompt}
+													onDelete={handleDeletePrompt}
+													onHistory={() => handleOpenVersionHistory(prompt)}
+													onAI={() => handleOpenAISuggestions(prompt)}
+													onShare={() => handleOpenShare(prompt)}
+												/>
+											</div>
+										))}
+									</AnimatePresence>
+								</div>
+							</div>
+						)}
+
+						{/* Shared Prompts Section */}
+						{sharedFilteredPrompts.length > 0 && (
+							<div>
+								<h3 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
+									<Share2 className="h-4 w-4" />
+									Shared with you
+								</h3>
+								<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+									<AnimatePresence>
+										{sharedFilteredPrompts.map((prompt, index) => (
+											<PromptCard
+												key={prompt.id}
+												{...prompt}
+												isSelected={false}
+												sharedByLabel={
+													prompt.sharedByGroup 
+														? `via ${prompt.sharedByGroup.name}`
+														: `by ${prompt.sharedBy?.email?.split("@")[0] || "someone"}`
+												}
+												onClick={handleViewPrompt}
+												onEdit={undefined}
+												onDelete={undefined}
+												onHistory={undefined}
+												onAI={undefined}
+												onShare={undefined}
+											/>
+										))}
+									</AnimatePresence>
+								</div>
+							</div>
+						)}
 					</div>
 				) : (
 					<div className="flex flex-col items-center justify-center py-20">
@@ -748,7 +952,7 @@ export function DashboardClient({ session }: DashboardClientProps) {
 				open={viewerOpen}
 				onOpenChange={setViewerOpen}
 				prompt={viewingPrompt}
-				onEdit={() => {
+				onEdit={viewingPrompt?.isShared ? undefined : () => {
 					setViewerOpen(false);
 					if (viewingPrompt) {
 						handleEditPrompt(viewingPrompt.id);
@@ -917,6 +1121,17 @@ export function DashboardClient({ session }: DashboardClientProps) {
 					)}
 				</DialogContent>
 			</Dialog>
+
+			{/* Bulk Share Dialog */}
+			<BulkShareDialog
+				open={bulkShareDialogOpen}
+				onOpenChange={setBulkShareDialogOpen}
+				selectedPromptIds={Array.from(selectedPromptIds)}
+				onSuccess={() => {
+					setSelectedPromptIds(new Set());
+					setIsMultiSelectMode(false);
+				}}
+			/>
 
 			{/* User Info */}
 			<div className="fixed bottom-4 left-4 flex items-center gap-2 rounded-full bg-muted/80 backdrop-blur px-3 py-1.5 text-xs text-muted-foreground shadow-sm border">

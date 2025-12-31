@@ -78,7 +78,7 @@ export async function GET() {
 			},
 		}));
 
-		return NextResponse.json({ prompts: sharedPromptsList });
+		return NextResponse.json({ sharedPrompts: sharedPromptsList });
 	} catch (error) {
 		console.error("Failed to fetch shared prompts:", error);
 		return NextResponse.json(

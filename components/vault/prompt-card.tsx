@@ -32,6 +32,7 @@ interface PromptCardProps {
 	createdAt: Date;
 	updatedAt: Date;
 	isSelected?: boolean;
+	sharedByLabel?: string;
 	onEdit?: (id: string) => void;
 	onDelete?: (id: string) => void;
 	onHistory?: () => void;
@@ -48,6 +49,7 @@ export function PromptCard({
 	tags,
 	updatedAt,
 	isSelected,
+	sharedByLabel,
 	onEdit,
 	onDelete,
 	onHistory,
@@ -114,44 +116,58 @@ export function PromptCard({
 						<CardTitle className="line-clamp-1 text-sm font-medium">
 							{title}
 						</CardTitle>
-						<DropdownMenu>
-							<DropdownMenuTrigger asChild>
-								<Button
-									variant="ghost"
-									size="sm"
-									className="h-8 w-8 p-0 opacity-0 transition-opacity group-hover:opacity-100"
-									onClick={(e) => e.stopPropagation()}
-								>
-									<MoreVertical className="h-4 w-4" />
-								</Button>
-							</DropdownMenuTrigger>
-							<DropdownMenuContent align="end">
-								<DropdownMenuItem onClick={handleEdit}>
-									<Edit className="mr-2 h-4 w-4" />
-									Edit
-								</DropdownMenuItem>
-								<DropdownMenuItem onClick={handleShare}>
-									<Share2 className="mr-2 h-4 w-4" />
-									Share
-								</DropdownMenuItem>
-								<DropdownMenuItem onClick={handleHistory}>
-									<History className="mr-2 h-4 w-4" />
-									Version History
-								</DropdownMenuItem>
-								<DropdownMenuItem onClick={handleAI}>
-									<Sparkles className="mr-2 h-4 w-4" />
-									AI Suggestions
-								</DropdownMenuItem>
-								<DropdownMenuSeparator />
-								<DropdownMenuItem
-									onClick={handleDelete}
-									className="text-destructive focus:text-destructive"
-								>
-									<Trash2 className="mr-2 h-4 w-4" />
-									Delete
-								</DropdownMenuItem>
-							</DropdownMenuContent>
-						</DropdownMenu>
+						{(onEdit || onDelete || onHistory || onAI || onShare) && (
+							<DropdownMenu>
+								<DropdownMenuTrigger asChild>
+									<Button
+										variant="ghost"
+										size="sm"
+										className="h-8 w-8 p-0 opacity-0 transition-opacity group-hover:opacity-100"
+										onClick={(e) => e.stopPropagation()}
+									>
+										<MoreVertical className="h-4 w-4" />
+									</Button>
+								</DropdownMenuTrigger>
+								<DropdownMenuContent align="end">
+									{onEdit && (
+										<DropdownMenuItem onClick={handleEdit}>
+											<Edit className="mr-2 h-4 w-4" />
+											Edit
+										</DropdownMenuItem>
+									)}
+									{onShare && (
+										<DropdownMenuItem onClick={handleShare}>
+											<Share2 className="mr-2 h-4 w-4" />
+											Share
+										</DropdownMenuItem>
+									)}
+									{onHistory && (
+										<DropdownMenuItem onClick={handleHistory}>
+											<History className="mr-2 h-4 w-4" />
+											Version History
+										</DropdownMenuItem>
+									)}
+									{onAI && (
+										<DropdownMenuItem onClick={handleAI}>
+											<Sparkles className="mr-2 h-4 w-4" />
+											AI Suggestions
+										</DropdownMenuItem>
+									)}
+									{onDelete && (
+										<>
+											<DropdownMenuSeparator />
+											<DropdownMenuItem
+												onClick={handleDelete}
+												className="text-destructive focus:text-destructive"
+											>
+												<Trash2 className="mr-2 h-4 w-4" />
+												Delete
+											</DropdownMenuItem>
+										</>
+									)}
+								</DropdownMenuContent>
+							</DropdownMenu>
+						)}
 					</div>
 					{description && (
 						<p className="line-clamp-1 text-sm text-muted-foreground">
@@ -195,6 +211,16 @@ export function PromptCard({
 									+{tags.length - 2}
 								</Badge>
 							)}
+						</div>
+					)}
+
+					{/* Shared By Label */}
+					{sharedByLabel && (
+						<div className="flex items-center gap-1 pt-1">
+							<Share2 className="h-3 w-3 text-primary flex-shrink-0" />
+							<span className="text-[10px] text-primary font-medium">
+								{sharedByLabel}
+							</span>
 						</div>
 					)}
 

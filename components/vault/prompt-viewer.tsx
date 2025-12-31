@@ -41,6 +41,7 @@ interface PromptViewerProps {
 		createdAt: Date;
 		updatedAt: Date;
 		versionCount?: number;
+		isShared?: boolean;
 	} | null;
 	onEdit?: () => void;
 }
