@@ -33,6 +33,7 @@ export const usersRelations = relations(users, ({ one, many }) => ({
 	vault: one(vaults),
 	groupMemberships: many(groupMembers),
 	notifications: many(notifications),
+	connections: many(userConnections),
 }));
 
 // ============================================================================
@@ -269,6 +270,120 @@ export const groupMembersRelations = relations(groupMembers, ({ one }) => ({
 		references: [users.id],
 	}),
 }));
+
+// ============================================================================
+// Group Invites
+// ============================================================================
+
+export const groupInvites = pgTable(
+	"group_invites",
+	{
+		id: uuid("id").defaultRandom().primaryKey(),
+		token: text("token").notNull().unique(),
+		groupId: uuid("group_id")
+			.notNull()
+			.references(() => groups.id, { onDelete: "cascade" }),
+		createdById: uuid("created_by_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		expiresAt: timestamp("expires_at", { withTimezone: true }),
+		maxUses: integer("max_uses"), // null = unlimited
+		uses: integer("uses").notNull().default(0),
+		createdAt: timestamp("created_at", { withTimezone: true })
+			.defaultNow()
+			.notNull(),
+	},
+	(table) => [
+		index("group_invites_token_idx").on(table.token),
+		index("group_invites_group_id_idx").on(table.groupId),
+	],
+);
+
+export const groupInvitesRelations = relations(groupInvites, ({ one }) => ({
+	group: one(groups, {
+		fields: [groupInvites.groupId],
+		references: [groups.id],
+	}),
+	createdBy: one(users, {
+		fields: [groupInvites.createdById],
+		references: [users.id],
+	}),
+}));
+
+export type GroupInvite = typeof groupInvites.$inferSelect;
+export type NewGroupInvite = typeof groupInvites.$inferInsert;
+
+// ============================================================================
+// User Connections (for direct user-to-user sharing)
+// ============================================================================
+
+export const userConnections = pgTable(
+	"user_connections",
+	{
+		userId: uuid("user_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		connectedUserId: uuid("connected_user_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		createdAt: timestamp("created_at", { withTimezone: true })
+			.defaultNow()
+			.notNull(),
+	},
+	(table) => [
+		primaryKey({ columns: [table.userId, table.connectedUserId] }),
+		index("user_connections_user_id_idx").on(table.userId),
+		index("user_connections_connected_user_id_idx").on(table.connectedUserId),
+	],
+);
+
+export const userConnectionsRelations = relations(userConnections, ({ one }) => ({
+	user: one(users, {
+		fields: [userConnections.userId],
+		references: [users.id],
+	}),
+	connectedUser: one(users, {
+		fields: [userConnections.connectedUserId],
+		references: [users.id],
+	}),
+}));
+
+// ============================================================================
+// User Invites (for inviting users to connect directly)
+// ============================================================================
+
+export const userInvites = pgTable(
+	"user_invites",
+	{
+		id: uuid("id").defaultRandom().primaryKey(),
+		token: text("token").notNull().unique(),
+		createdById: uuid("created_by_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		expiresAt: timestamp("expires_at", { withTimezone: true }),
+		maxUses: integer("max_uses"), // null = unlimited
+		uses: integer("uses").notNull().default(0),
+		createdAt: timestamp("created_at", { withTimezone: true })
+			.defaultNow()
+			.notNull(),
+	},
+	(table) => [
+		index("user_invites_token_idx").on(table.token),
+		index("user_invites_created_by_id_idx").on(table.createdById),
+	],
+);
+
+export const userInvitesRelations = relations(userInvites, ({ one }) => ({
+	createdBy: one(users, {
+		fields: [userInvites.createdById],
+		references: [users.id],
+	}),
+}));
+
+export type UserInvite = typeof userInvites.$inferSelect;
+export type NewUserInvite = typeof userInvites.$inferInsert;
+export type UserConnection = typeof userConnections.$inferSelect;
+export type NewUserConnection = typeof userConnections.$inferInsert;
 
 // ============================================================================
 // Shared Prompts

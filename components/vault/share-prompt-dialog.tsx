@@ -34,6 +34,12 @@ interface Group {
 	memberCount: number;
 }
 
+interface ConnectedUser {
+	id: string;
+	email: string;
+	connectedAt: Date;
+}
+
 interface Share {
 	id: string;
 	sharedWithUser?: {
@@ -64,15 +70,19 @@ export function SharePromptDialog({
 	const [email, setEmail] = React.useState("");
 	const [isSharing, setIsSharing] = React.useState(false);
 	const [groups, setGroups] = React.useState<Group[]>([]);
+	const [connectedUsers, setConnectedUsers] = React.useState<ConnectedUser[]>([]);
 	const [shares, setShares] = React.useState<Share[]>([]);
 	const [isLoadingGroups, setIsLoadingGroups] = React.useState(false);
+	const [isLoadingConnections, setIsLoadingConnections] = React.useState(false);
 	const [isLoadingShares, setIsLoadingShares] = React.useState(false);
 	const [selectedGroupId, setSelectedGroupId] = React.useState<string | null>(null);
+	const [selectedUserId, setSelectedUserId] = React.useState<string | null>(null);
 
-	// Fetch user's groups
+	// Fetch user's groups and connections
 	React.useEffect(() => {
 		if (open) {
 			fetchGroups();
+			fetchConnections();
 			fetchShares();
 		}
 	}, [open, promptId]);
@@ -92,6 +102,21 @@ export function SharePromptDialog({
 		}
 	};
 
+	const fetchConnections = async () => {
+		setIsLoadingConnections(true);
+		try {
+			const res = await fetch("/api/user/connections");
+			if (res.ok) {
+				const data = await res.json();
+				setConnectedUsers(data.connections);
+			}
+		} catch (error) {
+			console.error("Failed to fetch connections:", error);
+		} finally {
+			setIsLoadingConnections(false);
+		}
+	};
+
 	const fetchShares = async () => {
 		setIsLoadingShares(true);
 		try {
@@ -107,18 +132,27 @@ export function SharePromptDialog({
 		}
 	};
 
-	const handleShareWithUser = async () => {
-		if (!email.trim()) {
+	const handleShareWithUser = async (userEmail?: string) => {
+		const targetEmail = userEmail || email.trim();
+		if (!targetEmail) {
 			toast.error("Please enter an email address");
 			return;
 		}
 
 		setIsSharing(true);
+		if (!userEmail) {
+			// Manual email entry
+		} else {
+			// From connected user list
+			const user = connectedUsers.find(u => u.email === userEmail);
+			if (user) setSelectedUserId(user.id);
+		}
+		
 		try {
 			const res = await fetch(`/api/prompts/${promptId}/share`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ email: email.trim() }),
+				body: JSON.stringify({ email: targetEmail }),
 			});
 
 			if (res.ok) {
@@ -133,7 +167,13 @@ export function SharePromptDialog({
 			toast.error("Failed to share prompt");
 		} finally {
 			setIsSharing(false);
+			setSelectedUserId(null);
 		}
+	};
+
+	// Check if already shared with a user
+	const isSharedWithUser = (userId: string) => {
+		return shares.some((s) => s.sharedWithUser?.id === userId);
 	};
 
 	const handleShareWithGroup = async (groupId: string) => {
@@ -230,10 +270,10 @@ export function SharePromptDialog({
 										/>
 									</div>
 									<Button
-										onClick={handleShareWithUser}
+										onClick={() => handleShareWithUser()}
 										disabled={isSharing || !email.trim()}
 									>
-										{isSharing ? (
+										{isSharing && !selectedUserId ? (
 											<Loader2 className="h-4 w-4 animate-spin" />
 										) : (
 											"Share"
@@ -241,6 +281,68 @@ export function SharePromptDialog({
 									</Button>
 								</div>
 							</div>
+
+							{/* Connected Users */}
+							{connectedUsers.length > 0 && (
+								<div className="space-y-2">
+									<Label className="text-muted-foreground">Or share with a connection</Label>
+									<ScrollArea className="h-[150px]">
+										<div className="space-y-2">
+											{connectedUsers.map((user) => {
+												const alreadyShared = isSharedWithUser(user.id);
+												return (
+													<div
+														key={user.id}
+														className={cn(
+															"flex items-center justify-between p-3 rounded-lg border transition-colors",
+															alreadyShared
+																? "border-green-500/30 bg-green-50 dark:bg-green-500/5"
+																: "border-border bg-muted/50 hover:bg-muted"
+														)}
+													>
+														<div className="flex items-center gap-3">
+															<div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+																<span className="text-xs font-medium text-primary">
+																	{user.email.charAt(0).toUpperCase()}
+																</span>
+															</div>
+															<div>
+																<p className="font-medium text-sm">{user.email}</p>
+																<p className="text-xs text-muted-foreground">Connected</p>
+															</div>
+														</div>
+														{alreadyShared ? (
+															<Badge variant="secondary" className="bg-green-500/10 text-green-600">
+																<Check className="h-3 w-3 mr-1" />
+																Shared
+															</Badge>
+														) : (
+															<Button
+																size="sm"
+																variant="outline"
+																onClick={() => handleShareWithUser(user.email)}
+																disabled={isSharing && selectedUserId === user.id}
+															>
+																{isSharing && selectedUserId === user.id ? (
+																	<Loader2 className="h-4 w-4 animate-spin" />
+																) : (
+																	"Share"
+																)}
+															</Button>
+														)}
+													</div>
+												);
+											})}
+										</div>
+									</ScrollArea>
+								</div>
+							)}
+
+							{isLoadingConnections && (
+								<div className="flex items-center justify-center py-4">
+									<Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+								</div>
+							)}
 						</TabsContent>
 
 						<TabsContent value="group" className="mt-0 space-y-4">

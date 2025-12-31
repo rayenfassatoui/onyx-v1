@@ -36,7 +36,17 @@ import {
 	UserMinus,
 	ArrowLeft,
 	Crown,
+	Link2,
+	Copy,
+	Check,
 } from "lucide-react";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 
 interface Group {
@@ -73,12 +83,20 @@ export function GroupsClient({ session }: GroupsClientProps) {
 	const [editDialogOpen, setEditDialogOpen] = React.useState(false);
 	const [addMemberDialogOpen, setAddMemberDialogOpen] = React.useState(false);
 	const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
+	const [inviteLinkDialogOpen, setInviteLinkDialogOpen] = React.useState(false);
 
 	// Form states
 	const [groupName, setGroupName] = React.useState("");
 	const [groupDescription, setGroupDescription] = React.useState("");
 	const [memberEmail, setMemberEmail] = React.useState("");
 	const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+	// Invite link states
+	const [inviteLink, setInviteLink] = React.useState<string | null>(null);
+	const [inviteExpiry, setInviteExpiry] = React.useState<string>("7d");
+	const [inviteMaxUses, setInviteMaxUses] = React.useState<string>("unlimited");
+	const [isCreatingInvite, setIsCreatingInvite] = React.useState(false);
+	const [linkCopied, setLinkCopied] = React.useState(false);
 
 	// Fetch groups
 	const fetchGroups = React.useCallback(async () => {
@@ -253,6 +271,55 @@ export function GroupsClient({ session }: GroupsClientProps) {
 		}
 	};
 
+	// Create invite link
+	const handleCreateInviteLink = async () => {
+		if (!selectedGroup) return;
+
+		setIsCreatingInvite(true);
+		try {
+			const body: { expiresIn?: string; maxUses?: number } = {};
+			if (inviteExpiry !== "never") {
+				body.expiresIn = inviteExpiry;
+			}
+			if (inviteMaxUses !== "unlimited") {
+				body.maxUses = parseInt(inviteMaxUses);
+			}
+
+			const res = await fetch(`/api/groups/${selectedGroup.id}/invite`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(body),
+			});
+
+			if (res.ok) {
+				const data = await res.json();
+				const fullLink = `${window.location.origin}/invite/${data.invite.token}`;
+				setInviteLink(fullLink);
+			} else {
+				const data = await res.json();
+				toast.error(data.error || "Failed to create invite link");
+			}
+		} catch (error) {
+			toast.error("Failed to create invite link");
+		} finally {
+			setIsCreatingInvite(false);
+		}
+	};
+
+	// Copy invite link
+	const handleCopyInviteLink = async () => {
+		if (!inviteLink) return;
+
+		try {
+			await navigator.clipboard.writeText(inviteLink);
+			setLinkCopied(true);
+			toast.success("Invite link copied!");
+			setTimeout(() => setLinkCopied(false), 2000);
+		} catch {
+			toast.error("Failed to copy link");
+		}
+	};
+
 	const isGroupOwner = (group: Group) => group.creatorId === session.userId || group.currentUserRole === "admin";
 
 	return (
@@ -386,6 +453,17 @@ export function GroupsClient({ session }: GroupsClientProps) {
 													</Button>
 												</DropdownMenuTrigger>
 												<DropdownMenuContent align="end">
+													<DropdownMenuItem
+														onClick={() => {
+															setInviteLink(null);
+															setInviteExpiry("7d");
+															setInviteMaxUses("unlimited");
+															setInviteLinkDialogOpen(true);
+														}}
+													>
+														<Link2 className="h-4 w-4 mr-2" />
+														Create Invite Link
+													</DropdownMenuItem>
 													<DropdownMenuItem
 														onClick={() => {
 															setGroupName(selectedGroup.name);
@@ -617,6 +695,107 @@ export function GroupsClient({ session }: GroupsClientProps) {
 							Delete
 						</Button>
 					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Invite Link Dialog */}
+			<Dialog open={inviteLinkDialogOpen} onOpenChange={setInviteLinkDialogOpen}>
+				<DialogContent className="sm:max-w-md">
+					<DialogHeader>
+						<DialogTitle>Create Invite Link</DialogTitle>
+						<DialogDescription>
+							Generate a shareable link that anyone can use to join "{selectedGroup?.name}"
+						</DialogDescription>
+					</DialogHeader>
+					
+					{!inviteLink ? (
+						<>
+							<div className="space-y-4 py-4">
+								<div className="space-y-2">
+									<Label htmlFor="invite-expiry">Link Expires</Label>
+									<Select value={inviteExpiry} onValueChange={setInviteExpiry}>
+										<SelectTrigger>
+											<SelectValue placeholder="Select expiry" />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="1h">1 hour</SelectItem>
+											<SelectItem value="24h">24 hours</SelectItem>
+											<SelectItem value="7d">7 days</SelectItem>
+											<SelectItem value="30d">30 days</SelectItem>
+											<SelectItem value="never">Never</SelectItem>
+										</SelectContent>
+									</Select>
+								</div>
+								<div className="space-y-2">
+									<Label htmlFor="invite-max-uses">Max Uses</Label>
+									<Select value={inviteMaxUses} onValueChange={setInviteMaxUses}>
+										<SelectTrigger>
+											<SelectValue placeholder="Select max uses" />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="1">1 use</SelectItem>
+											<SelectItem value="5">5 uses</SelectItem>
+											<SelectItem value="10">10 uses</SelectItem>
+											<SelectItem value="25">25 uses</SelectItem>
+											<SelectItem value="100">100 uses</SelectItem>
+											<SelectItem value="unlimited">Unlimited</SelectItem>
+										</SelectContent>
+									</Select>
+								</div>
+							</div>
+							<DialogFooter>
+								<Button variant="outline" onClick={() => setInviteLinkDialogOpen(false)}>
+									Cancel
+								</Button>
+								<Button onClick={handleCreateInviteLink} disabled={isCreatingInvite}>
+									{isCreatingInvite && <Spinner className="h-4 w-4 mr-2" />}
+									Generate Link
+								</Button>
+							</DialogFooter>
+						</>
+					) : (
+						<>
+							<div className="space-y-4 py-4">
+								<div className="space-y-2">
+									<Label>Invite Link</Label>
+									<div className="flex gap-2">
+										<Input
+											readOnly
+											value={inviteLink}
+											className="flex-1 font-mono text-xs"
+										/>
+										<Button
+											size="icon"
+											variant="outline"
+											onClick={handleCopyInviteLink}
+										>
+											{linkCopied ? (
+												<Check className="h-4 w-4 text-green-500" />
+											) : (
+												<Copy className="h-4 w-4" />
+											)}
+										</Button>
+									</div>
+									<p className="text-xs text-muted-foreground">
+										Share this link with others to let them join the group.
+									</p>
+								</div>
+							</div>
+							<DialogFooter>
+								<Button
+									variant="outline"
+									onClick={() => {
+										setInviteLink(null);
+									}}
+								>
+									Create Another
+								</Button>
+								<Button onClick={() => setInviteLinkDialogOpen(false)}>
+									Done
+								</Button>
+							</DialogFooter>
+						</>
+					)}
 				</DialogContent>
 			</Dialog>
 		</div>

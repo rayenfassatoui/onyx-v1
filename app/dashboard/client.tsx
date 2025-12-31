@@ -4,8 +4,25 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import type { SessionPayload } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import { LogOut, Plus, Search, Settings, ArrowUpDown, Keyboard, Download, Users, Share2 } from "lucide-react";
+import { LogOut, Plus, Search, Settings, ArrowUpDown, Keyboard, Download, Users, Share2, Link2, Copy, Check } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 import { PromptCard } from "@/components/vault/prompt-card";
 import { PromptEditor } from "@/components/vault/prompt-editor";
 import { PromptViewer } from "@/components/vault/prompt-viewer";
@@ -86,6 +103,14 @@ export function DashboardClient({ session }: DashboardClientProps) {
 	const [selectedPromptForAI, setSelectedPromptForAI] = React.useState<Prompt | null>(null);
 	const [selectedPromptForShare, setSelectedPromptForShare] = React.useState<Prompt | null>(null);
 	
+	// User invite link states
+	const [userInviteDialogOpen, setUserInviteDialogOpen] = React.useState(false);
+	const [userInviteLink, setUserInviteLink] = React.useState<string | null>(null);
+	const [userInviteExpiry, setUserInviteExpiry] = React.useState<string>("7d");
+	const [userInviteMaxUses, setUserInviteMaxUses] = React.useState<string>("unlimited");
+	const [isCreatingUserInvite, setIsCreatingUserInvite] = React.useState(false);
+	const [userInviteLinkCopied, setUserInviteLinkCopied] = React.useState(false);
+	
 	// Keyboard navigation
 	const [selectedIndex, setSelectedIndex] = React.useState(-1);
 	const searchInputRef = React.useRef<HTMLInputElement>(null);
@@ -118,6 +143,22 @@ export function DashboardClient({ session }: DashboardClientProps) {
 	React.useEffect(() => {
 		fetchData();
 	}, [fetchData]);
+
+	// Check for pending invite after login
+	React.useEffect(() => {
+		const pendingInvite = sessionStorage.getItem("pendingInvite");
+		if (pendingInvite) {
+			sessionStorage.removeItem("pendingInvite");
+			router.push(`/invite/${pendingInvite}`);
+			return;
+		}
+		
+		const pendingUserInvite = sessionStorage.getItem("pendingUserInvite");
+		if (pendingUserInvite) {
+			sessionStorage.removeItem("pendingUserInvite");
+			router.push(`/invite/user/${pendingUserInvite}`);
+		}
+	}, [router]);
 
 	// Filter prompts
 	const filteredPrompts = React.useMemo(() => {
@@ -294,6 +335,53 @@ export function DashboardClient({ session }: DashboardClientProps) {
 	const handleOpenShare = (prompt: Prompt) => {
 		setSelectedPromptForShare(prompt);
 		setShareDialogOpen(true);
+	};
+
+	// Create user invite link
+	const handleCreateUserInviteLink = async () => {
+		setIsCreatingUserInvite(true);
+		try {
+			const body: { expiresIn?: string; maxUses?: number } = {};
+			if (userInviteExpiry !== "never") {
+				body.expiresIn = userInviteExpiry;
+			}
+			if (userInviteMaxUses !== "unlimited") {
+				body.maxUses = parseInt(userInviteMaxUses);
+			}
+
+			const res = await fetch("/api/user/invite", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(body),
+			});
+
+			if (res.ok) {
+				const data = await res.json();
+				const fullLink = `${window.location.origin}/invite/user/${data.invite.token}`;
+				setUserInviteLink(fullLink);
+			} else {
+				const data = await res.json();
+				toast.error(data.error || "Failed to create invite link");
+			}
+		} catch {
+			toast.error("Failed to create invite link");
+		} finally {
+			setIsCreatingUserInvite(false);
+		}
+	};
+
+	// Copy user invite link
+	const handleCopyUserInviteLink = async () => {
+		if (!userInviteLink) return;
+
+		try {
+			await navigator.clipboard.writeText(userInviteLink);
+			setUserInviteLinkCopied(true);
+			toast.success("Invite link copied!");
+			setTimeout(() => setUserInviteLinkCopied(false), 2000);
+		} catch {
+			toast.error("Failed to copy link");
+		}
 	};
 
 	// Apply AI variant
@@ -502,6 +590,25 @@ export function DashboardClient({ session }: DashboardClientProps) {
 							<TooltipContent>Groups</TooltipContent>
 						</Tooltip>
 
+						{/* Invite Link */}
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button 
+									size="sm" 
+									variant="ghost" 
+									onClick={() => {
+										setUserInviteLink(null);
+										setUserInviteExpiry("7d");
+										setUserInviteMaxUses("unlimited");
+										setUserInviteDialogOpen(true);
+									}}
+								>
+									<Link2 className="h-4 w-4" />
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent>Create invite link</TooltipContent>
+						</Tooltip>
+
 						{/* Notifications */}
 						<Tooltip>
 							<TooltipTrigger asChild>
@@ -701,6 +808,107 @@ export function DashboardClient({ session }: DashboardClientProps) {
 					promptTitle={selectedPromptForShare.title}
 				/>
 			)}
+
+			{/* User Invite Link Dialog */}
+			<Dialog open={userInviteDialogOpen} onOpenChange={setUserInviteDialogOpen}>
+				<DialogContent className="sm:max-w-md">
+					<DialogHeader>
+						<DialogTitle>Create Invite Link</DialogTitle>
+						<DialogDescription>
+							Generate a shareable link to connect with other users. Connected users can share prompts directly with each other.
+						</DialogDescription>
+					</DialogHeader>
+					
+					{!userInviteLink ? (
+						<>
+							<div className="space-y-4 py-4">
+								<div className="space-y-2">
+									<Label htmlFor="invite-expiry">Link Expires</Label>
+									<Select value={userInviteExpiry} onValueChange={setUserInviteExpiry}>
+										<SelectTrigger>
+											<SelectValue placeholder="Select expiry" />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="1h">1 hour</SelectItem>
+											<SelectItem value="24h">24 hours</SelectItem>
+											<SelectItem value="7d">7 days</SelectItem>
+											<SelectItem value="30d">30 days</SelectItem>
+											<SelectItem value="never">Never</SelectItem>
+										</SelectContent>
+									</Select>
+								</div>
+								<div className="space-y-2">
+									<Label htmlFor="invite-max-uses">Max Uses</Label>
+									<Select value={userInviteMaxUses} onValueChange={setUserInviteMaxUses}>
+										<SelectTrigger>
+											<SelectValue placeholder="Select max uses" />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="1">1 use</SelectItem>
+											<SelectItem value="5">5 uses</SelectItem>
+											<SelectItem value="10">10 uses</SelectItem>
+											<SelectItem value="25">25 uses</SelectItem>
+											<SelectItem value="100">100 uses</SelectItem>
+											<SelectItem value="unlimited">Unlimited</SelectItem>
+										</SelectContent>
+									</Select>
+								</div>
+							</div>
+							<DialogFooter>
+								<Button variant="outline" onClick={() => setUserInviteDialogOpen(false)}>
+									Cancel
+								</Button>
+								<Button onClick={handleCreateUserInviteLink} disabled={isCreatingUserInvite}>
+									{isCreatingUserInvite && <Spinner className="h-4 w-4 mr-2" />}
+									Generate Link
+								</Button>
+							</DialogFooter>
+						</>
+					) : (
+						<>
+							<div className="space-y-4 py-4">
+								<div className="space-y-2">
+									<Label>Invite Link</Label>
+									<div className="flex gap-2">
+										<Input
+											readOnly
+											value={userInviteLink}
+											className="flex-1 font-mono text-xs"
+										/>
+										<Button
+											size="icon"
+											variant="outline"
+											onClick={handleCopyUserInviteLink}
+										>
+											{userInviteLinkCopied ? (
+												<Check className="h-4 w-4 text-green-500" />
+											) : (
+												<Copy className="h-4 w-4" />
+											)}
+										</Button>
+									</div>
+									<p className="text-xs text-muted-foreground">
+										Share this link with others to connect with them.
+									</p>
+								</div>
+							</div>
+							<DialogFooter>
+								<Button
+									variant="outline"
+									onClick={() => {
+										setUserInviteLink(null);
+									}}
+								>
+									Create Another
+								</Button>
+								<Button onClick={() => setUserInviteDialogOpen(false)}>
+									Done
+								</Button>
+							</DialogFooter>
+						</>
+					)}
+				</DialogContent>
+			</Dialog>
 
 			{/* User Info */}
 			<div className="fixed bottom-4 left-4 flex items-center gap-2 rounded-full bg-muted/80 backdrop-blur px-3 py-1.5 text-xs text-muted-foreground shadow-sm border">
