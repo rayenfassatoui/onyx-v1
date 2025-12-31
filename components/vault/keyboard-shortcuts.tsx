@@ -43,6 +43,7 @@ const shortcuts = [
 			{ keys: ["⌘", ","], description: "Open settings" },
 			{ keys: ["G"], description: "Go to Groups" },
 			{ keys: ["H"], description: "Go to Shared prompts" },
+			{ keys: ["I"], description: "Create invite link" },
 			{ keys: ["?"], description: "Show keyboard shortcuts" },
 		],
 	},

@@ -477,6 +477,14 @@ export function DashboardClient({ session }: DashboardClientProps) {
 						router.push("/shared");
 					}
 					break;
+				case "i":
+				case "I":
+					if (!e.metaKey && !e.ctrlKey) {
+						e.preventDefault();
+						setUserInviteLink(null);
+						setUserInviteDialogOpen(true);
+					}
+					break;
 				case "Delete":
 				case "Backspace":
 					if (selectedIndex >= 0 && !e.metaKey && !e.ctrlKey) {
