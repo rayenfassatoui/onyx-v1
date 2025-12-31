@@ -566,13 +566,6 @@ export function DashboardClient({ session }: DashboardClientProps) {
 						router.push("/groups");
 					}
 					break;
-				case "h":
-				case "H":
-					if (!e.metaKey && !e.ctrlKey) {
-						e.preventDefault();
-						router.push("/shared");
-					}
-					break;
 				case "i":
 				case "I":
 					if (!e.metaKey && !e.ctrlKey) {
@@ -679,16 +672,6 @@ export function DashboardClient({ session }: DashboardClientProps) {
 								</Button>
 							</TooltipTrigger>
 							<TooltipContent>Keyboard shortcuts (?)</TooltipContent>
-						</Tooltip>
-
-						{/* Shared Prompts */}
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Button size="sm" variant="ghost" onClick={() => router.push("/shared")}>
-									<Share2 className="h-4 w-4" />
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent>Shared prompts</TooltipContent>
 						</Tooltip>
 
 						{/* Groups */}
