@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { AnimatePresence } from "motion/react";
+import { Logo } from "@/components/ui/logo";
 
 interface Tag {
 	id: string;
@@ -373,13 +374,10 @@ export function DashboardClient({ session }: DashboardClientProps) {
 	return (
 		<div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
 			{/* Header */}
-			<header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-md">
-				<div className="container flex h-14 items-center justify-between px-4 max-w-6xl mx-auto">
-					<div className="flex items-center gap-3">
-						<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-							<span className="text-sm font-bold text-primary-foreground">O</span>
-						</div>
-						<h1 className="text-lg font-semibold">Onyx Vault</h1>
+			<header className="sticky top-0 z-40 border-b border-border/40 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
+				<div className="container flex h-16 items-center justify-between px-4 max-w-6xl mx-auto">
+					<div className="flex items-center gap-4">
+						<Logo className="h-8 w-8" textClassName="text-lg tracking-[0.25em]" />
 					</div>
 
 					<div className="flex items-center gap-2">

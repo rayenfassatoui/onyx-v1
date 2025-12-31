@@ -6,6 +6,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Loader2, Lock, AlertCircle } from "lucide-react";
+import { Logo } from "@/components/ui/logo";
 
 interface LockScreenProps {
 	onUnlock: () => void;
@@ -100,19 +101,21 @@ export function LockScreen({ onUnlock, mode = "login", onModeChange }: LockScree
 						className="flex flex-col items-center gap-8 p-8"
 					>
 						{/* Logo / Brand */}
-						<div className="flex flex-col items-center gap-3">
+						<div className="flex flex-col items-center gap-6">
 							<motion.div
 								initial={{ scale: 0.8 }}
 								animate={{ scale: 1 }}
 								transition={{ duration: 0.3, delay: 0.2 }}
-								className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10"
+								className="flex h-20 w-20 items-center justify-center rounded-3xl bg-primary/5 ring-1 ring-primary/20 backdrop-blur-xl shadow-2xl shadow-primary/10"
 							>
-								<Lock className="h-8 w-8 text-primary" />
+								<Logo className="h-10 w-10" showText={false} />
 							</motion.div>
-							<h1 className="text-2xl font-semibold tracking-tight">Onyx Vault</h1>
-							<p className="text-sm text-muted-foreground">
-								{mode === "login" ? "Enter your passcode to unlock" : "Create your secure passcode"}
-							</p>
+							<div className="text-center space-y-2">
+								<h1 className="text-3xl font-light tracking-[0.3em] uppercase text-foreground">Onyx Vault</h1>
+								<p className="text-sm text-muted-foreground tracking-widest uppercase text-[10px]">
+									{mode === "login" ? "System Locked" : "Initialize System"}
+								</p>
+							</div>
 						</div>
 
 						{/* Form */}
