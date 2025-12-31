@@ -67,6 +67,7 @@ interface Prompt {
 	createdAt: Date;
 	updatedAt: Date;
 	versionCount?: number;
+	shareCount?: number;
 	// For shared prompts
 	isShared?: boolean;
 	sharedBy?: {

@@ -61,22 +61,24 @@ export async function GET() {
 			orderBy: (table, { desc }) => [desc(table.createdAt)],
 		});
 
-		// Format response
-		const sharedPromptsList = shared.map((s) => ({
-			shareId: s.id,
-			sharedAt: s.createdAt,
-			sharedBy: s.sharedBy,
-			sharedVia: s.sharedWithGroup ? { type: "group", group: s.sharedWithGroup } : { type: "direct" },
-			prompt: {
-				id: s.prompt.id,
-				title: s.prompt.title,
-				description: s.prompt.description,
-				content: s.prompt.content,
-				createdAt: s.prompt.createdAt,
-				updatedAt: s.prompt.updatedAt,
-				tags: s.prompt.promptTags.map((pt) => pt.tag),
-			},
-		}));
+		// Format response - exclude prompts shared by the current user
+		const sharedPromptsList = shared
+			.filter((s) => s.sharedBy.id !== session.userId)
+			.map((s) => ({
+				shareId: s.id,
+				sharedAt: s.createdAt,
+				sharedBy: s.sharedBy,
+				sharedVia: s.sharedWithGroup ? { type: "group", group: s.sharedWithGroup } : { type: "direct" },
+				prompt: {
+					id: s.prompt.id,
+					title: s.prompt.title,
+					description: s.prompt.description,
+					content: s.prompt.content,
+					createdAt: s.prompt.createdAt,
+					updatedAt: s.prompt.updatedAt,
+					tags: s.prompt.promptTags.map((pt) => pt.tag),
+				},
+			}));
 
 		return NextResponse.json({ sharedPrompts: sharedPromptsList });
 	} catch (error) {

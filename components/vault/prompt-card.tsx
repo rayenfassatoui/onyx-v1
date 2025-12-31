@@ -33,6 +33,7 @@ interface PromptCardProps {
 	updatedAt: Date;
 	isSelected?: boolean;
 	sharedByLabel?: string;
+	shareCount?: number;
 	onEdit?: (id: string) => void;
 	onDelete?: (id: string) => void;
 	onHistory?: () => void;
@@ -50,6 +51,7 @@ export function PromptCard({
 	updatedAt,
 	isSelected,
 	sharedByLabel,
+	shareCount,
 	onEdit,
 	onDelete,
 	onHistory,
@@ -226,9 +228,17 @@ export function PromptCard({
 
 					{/* Footer */}
 					<div className="flex items-center justify-between pt-1 border-t border-border/50">
-						<span className="text-[10px] text-muted-foreground">
-							{new Date(updatedAt).toLocaleDateString()}
-						</span>
+						<div className="flex items-center gap-2">
+							<span className="text-[10px] text-muted-foreground">
+								{new Date(updatedAt).toLocaleDateString()}
+							</span>
+							{shareCount !== undefined && shareCount > 0 && (
+								<div className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+									<Share2 className="h-2.5 w-2.5" />
+									<span>{shareCount}</span>
+								</div>
+							)}
+						</div>
 						<Button
 							variant="ghost"
 							size="sm"

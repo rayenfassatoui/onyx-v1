@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { prompts, promptVersions, promptTags, tags } from "@/db/schema";
+import { prompts, promptVersions, promptTags, tags, sharedPrompts } from "@/db/schema";
 import { eq, and, desc, or, ilike, inArray } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 
@@ -51,6 +51,18 @@ export async function GET(request: NextRequest) {
 			);
 		}
 
+		// Get share counts for each prompt
+		const promptIds = promptList.map(p => p.id);
+		const shares = promptIds.length > 0 ? await db.query.sharedPrompts.findMany({
+			where: inArray(sharedPrompts.promptId, promptIds),
+			columns: { promptId: true },
+		}) : [];
+		
+		const shareCountMap = shares.reduce((acc, s) => {
+			acc[s.promptId] = (acc[s.promptId] || 0) + 1;
+			return acc;
+		}, {} as Record<string, number>);
+
 		// Transform response
 		const result = promptList.map((prompt) => ({
 			id: prompt.id,
@@ -59,6 +71,7 @@ export async function GET(request: NextRequest) {
 			content: prompt.content,
 			createdAt: prompt.createdAt,
 			updatedAt: prompt.updatedAt,
+			shareCount: shareCountMap[prompt.id] || 0,
 			tags: prompt.promptTags.map((pt) => ({
 				id: pt.tag.id,
 				name: pt.tag.name,
