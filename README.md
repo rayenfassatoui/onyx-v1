@@ -35,6 +35,13 @@ A premium prompt engineering utility for managing, organizing, and optimizing AI
 - **Markdown export** - Human-readable format for documentation
 - **JSON import** - Restore prompts from backup
 
+### 🤝 Prompt Sharing & Collaboration
+- **Share with users** - Share prompts directly with other users by email
+- **Group sharing** - Create groups and share prompts with all members at once
+- **Group management** - Create, edit, and manage groups with admin/member roles
+- **In-app notifications** - Get notified when someone shares a prompt with you
+- **Revoke access** - Easily remove shares when needed
+
 ### 🎨 User Experience
 - **Dark/Light mode** - Toggle between themes
 - **Keyboard shortcuts** - Power-user navigation
@@ -108,9 +115,14 @@ onyx/
 │   ├── api/               # API routes
 │   │   ├── auth/          # Authentication endpoints
 │   │   ├── prompts/       # Prompt CRUD + AI features
+│   │   ├── groups/        # Group management
+│   │   ├── shared/        # Shared prompts
+│   │   ├── notifications/ # Notification system
 │   │   ├── tags/          # Tag management
 │   │   └── settings/      # User settings
 │   ├── dashboard/         # Main dashboard page
+│   ├── groups/            # Group management page
+│   ├── shared/            # Shared prompts page
 │   └── page.tsx           # Login/Register page
 ├── components/
 │   ├── ui/                # shadcn/ui components
@@ -130,11 +142,14 @@ onyx/
 |----------|--------|
 | `/` | Focus search |
 | `⌘N` | Create new prompt |
+| `⌘E` | Edit selected prompt |
+| `⌘⇧S` | Share selected prompt |
 | `⌘,` | Open settings |
 | `?` | Show shortcuts |
+| `G` | Go to Groups |
+| `H` | Go to Shared prompts |
 | `↑↓` | Navigate prompts |
 | `Enter` | Open selected prompt |
-| `⌘E` | Edit selected prompt |
 | `Esc` | Clear selection |
 
 ## 🔧 Available Scripts

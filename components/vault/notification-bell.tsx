@@ -58,7 +58,7 @@ export function NotificationBell() {
 	const markAsRead = async (id: string) => {
 		try {
 			const res = await fetch(`/api/notifications/${id}/read`, {
-				method: "POST",
+				method: "PUT",
 			});
 			if (res.ok) {
 				setNotifications((prev) =>
@@ -75,7 +75,7 @@ export function NotificationBell() {
 	const markAllAsRead = async () => {
 		try {
 			const res = await fetch("/api/notifications/read-all", {
-				method: "POST",
+				method: "PUT",
 			});
 			if (res.ok) {
 				setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
